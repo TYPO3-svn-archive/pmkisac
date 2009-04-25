@@ -1,0 +1,42 @@
+plugin.tx_pmkisac {
+
+	# cat=pmkisac/dims/d1; type=int+; label= Minimum length of word to activate auto completer.
+	minLength = 2
+
+	# cat=pmkisac/dims/d2; type=int+; label= Maximum number of suggested words.
+	maxChoices = 10
+
+	# cat=pmkisac/dims/d3; type=int+; label= Width of autocompleter dropdown if "inheritWidth" is set to FALSE.
+	dropDownWidth = 100
+
+	# cat=pmkisac/enable/e1; type=options[None=0,Outside=1,Inside=2]; label=Enable progress indicator: If set to 1, a progress indicator (spinner) is shown at the right of the input box. If set to 2 the progress indicator is shown inside the inputbox.
+	progressIndicator = 1
+	
+	# cat=pmkisac/enable/e2; type=boolean; label= Show wordcount: If set, wordcount is shown after the word in the suggested fields.
+	showWordcount = 1
+		
+	# cat=pmkisac/enable/e3; type=boolean; label= Allow multiple lookups: Allow more than one value, separated by a delimiter.
+	allowMulti = 1
+
+	# cat=pmkisac/enable/e4; type=boolean; label= Match start of word only: If set, text must match start of word, otherwise text can also be part of word.
+	startingWordOnly = 1
+
+	# cat=pmkisac/enable/e5; type=boolean; label= Select completed text part: Select completed text part (Not active if allowMulti is enabled or if startingWordOnly is not set)
+	useSelection = 1
+		
+	# cat=pmkisac/enable/e6; type=boolean; label= Mark queried string: Mark queried string with <span class="autocompleter-queried">*</span> (Not active if allowMulti is enabled)
+	markQuery = 1
+
+	# cat=pmkisac/enable/e7; type=boolean; label= Inherit width: Inherit width for the autocompleter overlay from the input field
+	inheritWidth = 1
+
+	# cat=pmkisac/enable/e8; type=boolean; label= Autosubmit form?: If set, form will be auto submitted after a lookupword has been selected. (Not active if allowMulti is enabled)
+	autoSubmit = 1
+	
+	# cat=pmkisac/enable/e9; type=boolean; label= Search in ALL languages?: If set search will be performed on all languages, instead of separate languages based on "config.sys_language_uid"
+	allLang = 0
+		
+	# cat=pmkisac/file/f1; type=file[css]; label= CSS File: CSS file for Autocompleter. Leave it blank if you place the CSS in your main stylesheet.
+	cssFile = typo3conf/ext/pmkisac/res/Autocompleter.css
+
+}

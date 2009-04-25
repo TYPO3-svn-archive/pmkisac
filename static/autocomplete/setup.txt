@@ -1,0 +1,53 @@
+plugin.tx_pmkisac {
+
+	# Minimum length of word to activate auto completer.
+	minLength = {$plugin.tx_pmkisac.minLength}
+
+	# Maximum number of suggested words. 
+	maxChoices = {$plugin.tx_pmkisac.maxChoices}
+
+	# Width of autocompleter dropdown if "inheritWidth" is set to FALSE.
+	dropDownWidth = {$plugin.tx_pmkisac.dropDownWidth}
+	
+	# Enable progress indicator: If set to 1, a progress indicator (spinner) is shown at the right of the input box. If set to 2 the progress indicator is shown inside the inputbox.
+	progressIndicator = {$plugin.tx_pmkisac.progressIndicator}
+	
+	# Show wordcount: If set, wordcount is shown after the word in the suggested fields.
+	showWordcount = {$plugin.tx_pmkisac.showWordcount}
+	
+	# Allow multiple lookups: Allow more than one value, seperated by a delimeter.
+	allowMulti = {$plugin.tx_pmkisac.allowMulti}
+
+	# Match start of word only: If set, text must match start of word, otherwise text can also be part of word.
+	startingWordOnly = {$plugin.tx_pmkisac.startingWordOnly}
+
+	# Select completed text part. (Not active if allowMulti is enabled or if startingWordOnly is not set)
+	useSelection = {$plugin.tx_pmkisac.useSelection}
+	
+	# Mark queried string with <span class="autocompleter-queried">*</span> (Not active if allowMulti is enabled)
+	markQuery = {$plugin.tx_pmkisac.markQuery}
+
+	# Inherit width for the autocompleter overlay from the input field
+	inheritWidth = {$plugin.tx_pmkisac.inheritWidth}
+
+	# If set, form will be auto submitted after a lookupword has been selected. (Not active if allowMulti is enabled)
+	autoSubmit = {$plugin.tx_pmkisac.autoSubmit}
+		
+	# CSS file for Autocompleter. Leave it blank if you place the CSS in your main stylesheet.
+	cssFile = {$plugin.tx_pmkisac.cssFile}
+	
+	# On multilanguage sites, search in ALL languages, instead of seperate languages based on "config.sys_language_uid"
+	allLang = {$plugin.tx_pmkisac.allLang}
+}
+
+# Create a USER object for calling the userfunction that includes the necessary 
+# JavaScript files and enables the autocomplete functionality on a userdefined formfield
+lib.mySearchbox = USER
+lib.mySearchbox.userFunc = user_pmkisac
+lib.mySearchbox.userFunc < plugin.tx_pmkisac
+
+# "mySearchbox" is the id of the custom search field
+lib.mySearchbox.userFunc.cssId = mySearchbox
+
+# And finally you should add the USER object to your PAGE object.
+#page.100 < lib.mySearchbox
