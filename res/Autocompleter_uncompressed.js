@@ -1,374 +1,387 @@
-/*	Script: Autocompleter.js
-		3rd party script for managing autocomplete functionality.
-		
-		Details:
-		Author - Harald Kirschner <mail [at] digitarald.de>
-		Refactored by - Aaron Newton <aaron [dot] newton [at] cnet [dot] com>
-		License - MIT-style license
-		Version - 1.0rc3
-		Source - http://digitarald.de/project/autocompleter/
-		
-		Dependencies:
-		Mootools 1.1 - <Class.Extras>, <Element.Event>, <Element.Selectors>, <Element.Form>, <Element.Dimensions>, <Fx.Style>, <Ajax>, <Json>
-		Autocompleter - <Observer.js>
-		
-		Namespace: Autocompleter
-		All functions are part of the <Autocompleter> namespace.
-	*/
-var Autocompleter = {};
-/*	Class: Autocompleter.Base
-		Base class for the Autocompleter classes.
-		
-		Arguments:
-		el - (DOM element or id) element to observe.
-		options - (object) key/value set of options.
-		
-		Options:
-		minLength - (integer, default 1) Minimum length to start auto compliter
-		useSelection - (boolean, default true) Select completed text part (works only for appended strings)
-		markQuery - (boolean, default true) Mark queried string with <span class="autocompleter-queried">*</span>
-		inheritWidth - (boolean, default true) Inherit width for the autocompleter overlay from the input field
-		maxChoices - (integer, default 10). Maximum of suggested fields.
-		injectChoice - (function, optional). Callback for injecting the list element with the arguments (itemValue, itemIndex), take a look at updateChoices for default behaviour.
-		onSelect - Event Function. Fires when when an item gets selected; passed the input and the value selected.
-		onShow - Event Function. Fires when autocompleter list shows.
-		onHide - Event Function. Fires when autocompleter list hides.
-		customTarget - (element, optional). Allows to override the autocompleter list element with your own list element.
-		className - (string, default 'autocompleter-choices'). Class name for the list element.
-		zIndex - (integer, default 42). z-Index for the list element.
-		observerOptions - optional Options Object. For the Observer class.
-		fxOptions - optional Options Object. For the Fx.Style on the list element.
-		allowMulti - (boolean, defaults to false) allow more than one value, seperated by a delimeter
-		delimeter - (string) default delimter between multi values (defaults to ", ")
-		autotrim - (boolean) trim the delimeter on blur
-		allowDupes - (boolean, defaults to false) if multi, prevent duplicate entries
-		baseHref - (string) the base url where the css and image assets are located (defaults to cnet's servers you should change)
+/**
+ * Autocompleter
+ *
+ * http://digitarald.de/project/autocompleter/
+ *
+ * @version		1.1.2
+ *
+ * @license		MIT-style license
+ * @author		Harald Kirschner <mail [at] digitarald.de>
+ * @copyright	Author
+ */
 
-		Note:
-		If you're not cnet, you should download these assets to your own local:
-		http://www.cnet.com/html/rb/assets/global/autocompleter/Autocompleter.css
-		http://www.cnet.com/html/rb/assets/global/autocompleter/spinner.gif
-		
-		Then either change this script or pass in the local when you instantiate the class.
-		
-		Example:
-		This base class is not used directly (but rather its inheritants are such as <Autocompleter.Ajax>)
-		so there is no example here.
-	*/
-Autocompleter.Base = new Class({
+var Autocompleter = new Class({
 
-	options: {
+	Implements: [Options, Events],
+
+	options: {/*
+		onOver: $empty,
+		onSelect: $empty,
+		onSelection: $empty,
+		onShow: $empty,
+		onHide: $empty,
+		onBlur: $empty,
+		onFocus: $empty,*/
 		minLength: 1,
-		useSelection: true,
 		markQuery: true,
-		inheritWidth: true,
-		dropDownWidth: 100,
+		width: 'inherit',
 		maxChoices: 10,
 		injectChoice: null,
-		onSelect: Class.empty,
-		onShow: Class.empty,
-		onHide: Class.empty,
-		customTarget: null,
+		customChoices: null,
+		emptyChoices: null,
+		visibleChoices: true,
 		className: 'autocompleter-choices',
 		zIndex: 42,
+		delay: 400,
 		observerOptions: {},
 		fxOptions: {},
-		multi: false,
-		delimeter: ', ',
-		autotrim: true,
+
+		autoSubmit: false,
+		overflow: false,
+		overflowMargin: 25,
+		selectFirst: false,
+		filter: null,
+		filterCase: false,
+		filterSubset: false,
+		forceSelect: false,
+		selectMode: true,
+		choicesMatch: null,
+
+		multiple: false,
+		separator: ', ',
+		separatorSplit: /\s*[,;]\s*/,
+		autoTrim: false,
 		allowDupes: false,
-		/*	if you're not cnet, you should download these assets to your own local:
-				http://www.cnet.com/html/rb/assets/global/autocompleter/Autocompleter.css
-				http://www.cnet.com/html/rb/assets/global/autocompleter/spinner.gif
-			*/
-		baseHref: 'http://www.cnet.com/html/rb/assets/global/autocompleter/'
+
+		cache: true,
+		relative: false
 	},
 
-	initialize: function(el, options) {
+	initialize: function(element, options) {
+		this.element = $(element);
 		this.setOptions(options);
-/*
-		if(!$('AutocompleterCss')) window.addEvent('domready', function(){
-			new Asset.css(this.options.baseHref+'Autocompleter.css', {id: 'AutocompleterCss'});
-		}.bind(this));
-*/
-		this.element = $(el);
 		this.build();
 		this.observer = new Observer(this.element, this.prefetch.bind(this), $merge({
-			delay: 400
+			'delay': this.options.delay
 		}, this.options.observerOptions));
-		this.value = this.observer.value;
 		this.queryValue = null;
-		this.element.addEvent('blur', function(e){
-			this.autoTrim.delay(50, this, e);
-		}.bind(this));
-		this.addEvent('onSelect', function(){
-			this.element.focus();
-			this.userChose = true;
-			(function(){
-				this.userChose = false;
-			}).delay(100, this);
-		}.bind(this));
+		if (this.options.filter) this.filter = this.options.filter.bind(this);
+		var mode = this.options.selectMode;
+		this.typeAhead = (mode == 'type-ahead');
+		this.selectMode = (mode === true) ? 'selection' : mode;
+		this.cached = [];
 	},
 
-/*	Property: build
-		Builds the html structure for choices and appends the events to the element.
-		Override this function to modify the html generation.	*/
-
+	/**
+	 * build - Initialize DOM
+	 *
+	 * Builds the html structure for choices and appends the events to the element.
+	 * Override this function to modify the html generation.
+	 */
 	build: function() {
-		if ($(this.options.customTarget)) this.choices = this.options.customTarget;
-		else {
+		if ($(this.options.customChoices)) {
+			this.choices = this.options.customChoices;
+		} else {
 			this.choices = new Element('ul', {
 				'class': this.options.className,
-				'styles': {zIndex: this.options.zIndex}
-				}).injectInside(document.body);
+				'styles': {
+					'zIndex': this.options.zIndex
+				}
+			}).inject(document.body);
+			this.relative = false;
+			if (this.options.relative) {
+				this.choices.inject(this.element, 'after');
+				this.relative = this.element.getOffsetParent();
+			}
 			this.fix = new OverlayFix(this.choices);
 		}
-		this.fx = this.choices.effect('opacity', $merge({wait: false, duration: 200}, this.options.fxOptions))
-			.addEvent('onStart', function() {
-				if (this.fx.now) return;
-				this.choices.setStyle('display', '');
-				this.fix.show();
-			}.bind(this))
-			.addEvent('onComplete', function() {
-				if (this.fx.now) return;
-				this.choices.setStyle('display', 'none');
-				this.fix.hide();
-			}.bind(this)).set(0);
-		this.element.setProperty('autocomplete', 'off')
-			.addEvent(window.ie ? 'keydown' : 'keypress', this.onCommand.bindWithEvent(this))
-			.addEvent('mousedown', this.onCommand.bindWithEvent(this, [true]))
-			.addEvent('focus', this.toggleFocus.bind(this, [true]))
-			.addEvent('blur', this.toggleFocus.bind(this, [false]))
-			.addEvent('trash', this.destroy.bind(this));
-	},
-	
-	autoTrim: function(e){
-		if(this.userChose) return this.userChose = false;
-		var del = this.options.delimeter;
-		var val = this.element.getValue();
-		if(this.options.autotrim && val.test(del+"$")){
-			e = new Event(e);
-			this.observer.value = this.element.value = val.substring(0, val.length-del.length);
+		if (!this.options.separator.test(this.options.separatorSplit)) {
+			this.options.separatorSplit = this.options.separator;
 		}
-		return this.observer.value
+		this.fx = (!this.options.fxOptions) ? null : new Fx.Tween(this.choices, $merge({
+			'property': 'opacity',
+			'link': 'cancel',
+			'duration': 200
+		}, this.options.fxOptions)).addEvent('onStart', Chain.prototype.clearChain).set(0);
+		this.element.setProperty('autocomplete', 'off')
+			.addEvent((Browser.Engine.trident || Browser.Engine.webkit) ? 'keydown' : 'keypress', this.onCommand.bind(this))
+			.addEvent('click', this.onCommand.bind(this, [false]))
+			.addEvent('focus', this.toggleFocus.create({bind: this, arguments: true, delay: 100}))
+			.addEvent('blur', this.toggleFocus.create({bind: this, arguments: false, delay: 100}));
 	},
-/*	Property: getQueryValue
-		Returns the user's input to use to match against the full list. When options.multi == true, this value is the last entered string after the last index of the delimeter.
-		
-		Arguments:
-		value - (string) optional, the value to clean; defaults to this.observer.value
 
-		Examples:
-(start code)
-user input: blue
-getQueryValue() returns "blue"
-
-user input: blue, green, yellow
-options.multi = true
-options.delimter = ", "
-getQueryValue() returns "yellow"
-
-user input: blue, green, yellow, 
-options.multi = true
-options.delimter = ", "
-getQueryValue() returns ""
-(end)
-	*/
-	getQueryValue: function(value){
-		value = $pick(value, this.observer.value);
-		return (this.options.multi)?value.lastElement(this.options.delimeter):value||'';
-	},
-	
-/*	Property: destroy
-		Remove the autocomplete functionality from the input.
-	*/
 	destroy: function() {
-		this.choices.remove();
+		if (this.fix) this.fix.destroy();
+		this.choices = this.selected = this.choices.destroy();
 	},
 
 	toggleFocus: function(state) {
 		this.focussed = state;
-		if (!state) this.hideChoices();
+		if (!state) this.hideChoices(true);
+		this.fireEvent((state) ? 'onFocus' : 'onBlur', [this.element]);
 	},
 
-	onCommand: function(e, mouse) {
-		var val = this.getQueryValue();
-		if (mouse && this.focussed) this.prefetch();
-		if (e.key) switch (e.key) {
-			case 'enter':
-				if (this.selected && this.visible) {
-					this.choiceSelect(this.selected);
-					e.stop();
-				} return;
-			case 'up': case 'down':
-
-				if (this.getQueryValue() != (val || this.queryValue) && !this.options.multi) this.prefetch();
-				else if (this.queryValue === null) break;
-				else if (!this.visible) this.showChoices();
-				else {
-					this.choiceOver((e.key == 'up')
-						? this.selected.getPrevious() || this.choices.getLast()
-						: this.selected.getNext() || this.choices.getFirst() );
-					this.setSelection();
-				}
-				e.stop(); return;
-			case 'esc': case 'tab': 
-				this.hideChoices(); 
-				if (this.options.multi) this.element.value = this.element.getValue().trimLastElement();
-				return;
+	onCommand: function(e) {
+		if (!e && this.focussed) return this.prefetch();
+		if (e && e.key && !e.shift) {
+			switch (e.key) {
+				case 'enter':
+					if (this.element.value != this.opted) return true;
+					if (this.selected && this.visible) {
+						this.choiceSelect(this.selected);
+						return !!(this.options.autoSubmit);
+					}
+					break;
+				case 'up': case 'down':
+					if (!this.prefetch() && this.queryValue !== null) {
+						var up = (e.key == 'up');
+						this.choiceOver((this.selected || this.choices)[
+							(this.selected) ? ((up) ? 'getPrevious' : 'getNext') : ((up) ? 'getLast' : 'getFirst')
+						](this.options.choicesMatch), true);
+					}
+					return false;
+				case 'esc': case 'tab':
+					this.hideChoices(true);
+					break;
+			}
 		}
-		this.value = false;
+		return true;
 	},
 
-	setSelection: function() {
-		if (!this.options.useSelection) return;
-		var del = this.options.delimeter;
-		var qVal = this.getQueryValue(this.queryValue);
-		var elVal = this.getQueryValue(this.element.getValue());
-		var startLength;
-		if(this.options.multi)	{
-			var index = this.queryValue.lastIndexOf(del);
-			var delLength = (index<0)?0:del.length;
-			startLength = qVal.length+(index<0?0:index)+delLength;
-		} else startLength = qVal.length;
-
-		if (elVal.indexOf(qVal) != 0) return;
-		var insert = this.selected.inputValue.substr(startLength);
-		if (window.ie) {
-			var sel = document.selection.createRange();
-			sel.text = insert;
-			sel.move("character", - insert.length);
-			sel.findText(insert);
-			sel.select();
-		} else {
-			var offset = (this.options.multi && this.element.value.test(del))?
-				this.element.getValue().length-elVal.length+qVal.length
-				:this.queryValue.length;
-			this.element.value = this.element.value.substring(0, offset) + insert;
-			this.element.selectionStart = offset;
-			this.element.selectionEnd = this.element.value.length;
+	setSelection: function(finish) {
+		var input = this.selected.inputValue, value = input;
+		var start = this.queryValue.length, end = input.length;
+		if (input.substr(0, start).toLowerCase() != this.queryValue.toLowerCase()) start = 0;
+		if (this.options.multiple) {
+			var split = this.options.separatorSplit;
+			value = this.element.value;
+			start += this.queryIndex;
+			end += this.queryIndex;
+			var old = value.substr(this.queryIndex).split(split, 1)[0];
+			value = value.substr(0, this.queryIndex) + input + value.substr(this.queryIndex + old.length);
+			if (finish) {
+				var tokens = value.split(this.options.separatorSplit).filter(function(entry) {
+					return this.test(entry);
+				}, /[^\s,]+/);
+				if (!this.options.allowDupes) tokens = [].combine(tokens);
+				var sep = this.options.separator;
+				value = tokens.join(sep) + sep;
+				end = value.length;
+			}
 		}
-		this.value = this.observer.value = this.element.value;
+		this.observer.setValue(value);
+		this.opted = value;
+		if (finish || this.selectMode == 'pick') start = end;
+		this.element.selectRange(start, end);
+		this.fireEvent('onSelection', [this.element, this.selected, value, input]);
 	},
-/*	Property: hideChoices
-		Hides the choices from the user.
-	*/
-	hideChoices: function() {
+
+	showChoices: function() {
+		var match = this.options.choicesMatch, first = this.choices.getFirst(match);
+		this.selected = this.selectedValue = null;
+		if (this.fix) {
+			var pos = this.element.getCoordinates(this.relative), width = this.options.width || 'auto';
+			this.choices.setStyles({
+				'left': pos.left,
+				'top': pos.bottom,
+				'width': (width === true || width == 'inherit') ? pos.width : width
+			});
+		}
+		if (!first) return;
+		if (!this.visible) {
+			this.visible = true;
+			this.choices.setStyle('display', '');
+			if (this.fx) this.fx.start(1);
+			this.fireEvent('onShow', [this.element, this.choices]);
+		}
+		if (this.options.selectFirst || this.typeAhead || first.inputValue == this.queryValue) this.choiceOver(first, this.typeAhead);
+		var items = this.choices.getChildren(match), max = this.options.maxChoices;
+		var styles = {'overflowY': 'hidden', 'height': ''};
+		this.overflown = false;
+		if (items.length > max) {
+			var item = items[max - 1];
+			styles.overflowY = 'scroll';
+			styles.height = item.getCoordinates(this.choices).bottom;
+			this.overflown = true;
+		};
+		this.choices.setStyles(styles);
+		this.fix.show();
+		if (this.options.visibleChoices) {
+			var scroll = document.getScroll(),
+			size = document.getSize(),
+			coords = this.choices.getCoordinates();
+			if (coords.right > scroll.x + size.x) scroll.x = coords.right - size.x;
+			if (coords.bottom > scroll.y + size.y) scroll.y = coords.bottom - size.y;
+			window.scrollTo(Math.min(scroll.x, coords.left), Math.min(scroll.y, coords.top));
+		}
+	},
+
+	hideChoices: function(clear) {
+		if (clear) {
+			var value = this.element.value;
+			if (this.options.forceSelect) value = this.opted;
+			if (this.options.autoTrim) {
+				value = value.split(this.options.separatorSplit).filter($arguments(0)).join(this.options.separator);
+			}
+			this.observer.setValue(value);
+		}
 		if (!this.visible) return;
-		this.visible = this.value = false;
+		this.visible = false;
+		if (this.selected) this.selected.removeClass('autocompleter-selected');
 		this.observer.clear();
-		this.fx.start(0);
+		var hide = function(){
+			this.choices.setStyle('display', 'none');
+			this.fix.hide();
+		}.bind(this);
+		if (this.fx) this.fx.start(0).chain(hide);
+		else hide();
 		this.fireEvent('onHide', [this.element, this.choices]);
 	},
 
-/*	Property: showChoices
-		Shows the choices to the user.
-	*/
-	showChoices: function() {
-		if (this.visible || !this.choices.getFirst()) return;
-		this.visible = true;
-		var pos = this.element.getCoordinates(this.options.overflown);
-		this.choices.setStyles({'left': pos.left, 'top': pos.bottom});
-		this.choices.setStyle('width', (this.options.inheritWidth)?pos.width:this.options.dropDownWidth);
-		this.fx.start(1);
-		this.choiceOver(this.choices.getFirst());
-		this.fireEvent('onShow', [this.element, this.choices]);
-	},
-
 	prefetch: function() {
-		var val = this.getQueryValue(this.element.getValue());
-		if (val.length < this.options.minLength) this.hideChoices();
-		else if (val == this.queryValue) this.showChoices();
-		else this.query();
+		var value = this.element.value, query = value;
+		if (this.options.multiple) {
+			var split = this.options.separatorSplit;
+			var values = value.split(split);
+			var index = this.element.getSelectedRange().start;
+			var toIndex = value.substr(0, index).split(split);
+			var last = toIndex.length - 1;
+			index -= toIndex[last].length;
+			query = values[last];
+		}
+		if (query.length < this.options.minLength) {
+			this.hideChoices();
+		} else {
+			if (query === this.queryValue || (this.visible && query == this.selectedValue)) {
+				if (this.visible) return false;
+				this.showChoices();
+			} else {
+				this.queryValue = query;
+				this.queryIndex = index;
+				if (!this.fetchCached()) this.query();
+			}
+		}
+		return true;
 	},
 
-	updateChoices: function(choices) {
+	fetchCached: function() {
+		return false;
+		if (!this.options.cache
+			|| !this.cached
+			|| !this.cached.length
+			|| this.cached.length >= this.options.maxChoices
+			|| this.queryValue) return false;
+		this.update(this.filter(this.cached));
+		return true;
+	},
+
+	update: function(tokens) {
 		this.choices.empty();
-		this.selected = null;
-		if (!choices || !choices.length) return;
-		if (this.options.maxChoices < choices.length) choices.length = this.options.maxChoices;
-		choices.each(this.options.injectChoice || function(choice, i){
-			var el = new Element('li').setHTML(this.markQueryValue(choice));
-			el.inputValue = choice;
-			this.addChoiceEvents(el).injectInside(this.choices);
-		}, this);
-		this.showChoices();
+		this.cached = tokens;
+		var type = tokens && $type(tokens);
+		if (!type || (type == 'array' && !tokens.length) || (type == 'hash' && !tokens.getLength())) {
+			(this.options.emptyChoices || this.hideChoices).call(this);
+		} else {
+			if (this.options.maxChoices < tokens.length && !this.options.overflow) tokens.length = this.options.maxChoices;
+			tokens.each(this.options.injectChoice || function(token){
+				var choice = new Element('li', {'html': this.markQueryValue(token)});
+				choice.inputValue = token;
+				this.addChoiceEvents(choice).inject(this.choices);
+			}, this);
+			this.showChoices();
+		}
 	},
 
-	choiceOver: function(el) {
+	choiceOver: function(choice, selection) {
+		if (!choice || choice == this.selected) return;
 		if (this.selected) this.selected.removeClass('autocompleter-selected');
-		this.selected = el.addClass('autocompleter-selected');
+		this.selected = choice.addClass('autocompleter-selected');
+		this.fireEvent('onSelect', [this.element, this.selected, selection]);
+		if (!this.selectMode) this.opted = this.element.value;
+		if (!selection) return;
+		this.selectedValue = this.selected.inputValue;
+		if (this.overflown) {
+			var coords = this.selected.getCoordinates(this.choices), margin = this.options.overflowMargin,
+				top = this.choices.scrollTop, height = this.choices.offsetHeight, bottom = top + height;
+			if (coords.top - margin < top && top) this.choices.scrollTop = Math.max(coords.top - margin, 0);
+			else if (coords.bottom + margin > bottom) this.choices.scrollTop = Math.min(coords.bottom - height + margin, bottom);
+		}
+		if (this.selectMode) this.setSelection();
 	},
 
-	choiceSelect: function(el) {
-		if(this.options.multi) {
-			var del = this.options.delimeter;
-			var value = (this.element.value.trimLastElement(del) + el.inputValue).split(del);
-			var fin = [];
-			if (!this.options.allowDupes) {
-				value.each(function(item){
-					if(fin.contains(item))fin.remove(item); //move it to the end
-					fin.include(item);
-				})
-			} else fin = value;
-			this.observer.value = this.element.value = fin.join(del)+del;
-		} else this.observer.value = this.element.value = el.inputValue;
-		
-		
+	choiceSelect: function(choice) {
+		if (choice) this.choiceOver(choice);
+		this.setSelection(true);
+		this.queryValue = false;
 		this.hideChoices();
-		this.fireEvent('onSelect', [this.element, el.inputValue], 20);
 	},
 
-/*	Property: markQueryValue
-		Marks the queried word in the given string with <span class="autocompleter-queried">*</span>
-		Call this i.e. from your custom parseChoices, same for addChoiceEvents
-		
-		Arguments:
-		txt - (string) the string to mark
+	filter: function(tokens) {
+		return (tokens || this.tokens).filter(function(token) {
+			return this.test(token);
+		}, new RegExp(((this.options.filterSubset) ? '' : '^') + this.queryValue.escapeRegExp(), (this.options.filterCase) ? '' : 'i'));
+	},
+
+	/**
+	 * markQueryValue
+	 *
+	 * Marks the queried word in the given string with <span class="autocompleter-queried">*</span>
+	 * Call this i.e. from your custom parseChoices, same for addChoiceEvents
+	 *
+	 * @param		{String} Text
+	 * @return		{String} Text
 	 */
-	markQueryValue: function(txt) {
-		var val = (this.options.mult)?this.lastQueryElementValue:this.queryValue;
-		//return (this.options.markQuery && val) ? txt.replace(new RegExp('^(' + val.escapeRegExp() + ')', 'i'), '<span class="autocompleter-queried">$1</span>') : txt;
-		return (this.options.markQuery && val) ? txt.replace(new RegExp('(' + val.escapeRegExp() + ')', 'i'), '<span class="autocompleter-queried">$1</span>') : txt;
+	markQueryValue: function(str) {
+		return (!this.options.markQuery || !this.queryValue) ? str
+			: str.replace(new RegExp('(' + ((this.options.filterSubset) ? '' : '^') + this.queryValue.escapeRegExp() + ')', (this.options.filterCase) ? '' : 'i'), '<span class="autocompleter-queried">$1</span>');
 	},
 
-/*	Property: addChoiceEvents
-		Appends the needed event handlers for a choice-entry to the given element.
-		
-		Arguments:
-		el - (DOM element or id) the element to add
-*/
+	/**
+	 * addChoiceEvents
+	 *
+	 * Appends the needed event handlers for a choice-entry to the given element.
+	 *
+	 * @param		{Element} Choice entry
+	 * @return		{Element} Choice entry
+	 */
 	addChoiceEvents: function(el) {
 		return el.addEvents({
 			'mouseover': this.choiceOver.bind(this, [el]),
-			'mousedown': this.choiceSelect.bind(this, [el])
+			'click': this.choiceSelect.bind(this, [el])
 		});
-	},
-	query: Class.empty
+	}
 });
 
-Autocompleter.Base.implement(new Events);
-Autocompleter.Base.implement(new Options);
-
-/*	Class: OverlayFix
-		Private class used by <Autocompleter> - basically an <IframeShim>.
-	*/
 var OverlayFix = new Class({
 
 	initialize: function(el) {
-		this.element = $(el);
-		if (window.ie){
-			this.element.addEvent('trash', this.destroy.bind(this));
+		if (Browser.Engine.trident) {
+			this.element = $(el);
+			this.relative = this.element.getOffsetParent();
 			this.fix = new Element('iframe', {
-					'properties': {'frameborder': '0', 'scrolling': 'no', 'src': 'javascript:false;'},
-					'styles': {'position': 'absolute', 'border': 'none', 'display': 'none', 'filter': 'progid:DXImageTransform.Microsoft.Alpha(opacity=0)'}})
-				.injectAfter(this.element);
+				'frameborder': '0',
+				'scrolling': 'no',
+				'src': 'javascript:false;',
+				'styles': {
+					'position': 'absolute',
+					'border': 'none',
+					'display': 'none',
+					'filter': 'progid:DXImageTransform.Microsoft.Alpha(opacity=0)'
+				}
+			}).inject(this.element, 'after');
 		}
 	},
 
 	show: function() {
-		if (this.fix) this.fix.setStyles($extend(
-			this.element.getCoordinates(), {'display': '', 'zIndex': (this.element.getStyle('zIndex') || 1) - 1}));
+		if (this.fix) {
+			var coords = this.element.getCoordinates(this.relative);
+			delete coords.right;
+			delete coords.bottom;
+			this.fix.setStyles($extend(coords, {
+				'display': '',
+				'zIndex': (this.element.getStyle('zIndex') || 1) - 1
+			}));
+		}
 		return this;
 	},
 
@@ -378,317 +391,212 @@ var OverlayFix = new Class({
 	},
 
 	destroy: function() {
-		this.fix.remove();
+		if (this.fix) this.fix = this.fix.destroy();
 	}
 
 });
 
-String.extend({
-	lastElement: function(separator){
-		separator = separator || ' ';
-		var txt = this; //(separator.test(' $'))?this:this.trim();
-		var index = txt.lastIndexOf(separator);
-		var result = (index == -1)? txt: txt.substr(index + separator.length, txt.length);
-		return result;
+Element.implement({
+
+	getSelectedRange: function() {
+		if (!Browser.Engine.trident) return {start: this.selectionStart, end: this.selectionEnd};
+		var pos = {start: 0, end: 0};
+		var range = this.getDocument().selection.createRange();
+		if (!range || range.parentElement() != this) return pos;
+		var dup = range.duplicate();
+		if (this.type == 'text') {
+			pos.start = 0 - dup.moveStart('character', -100000);
+			pos.end = pos.start + range.text.length;
+		} else {
+			var value = this.value;
+			var offset = value.length - value.match(/[\n\r]*$/)[0].length;
+			dup.moveToElementText(this);
+			dup.setEndPoint('StartToEnd', range);
+			pos.end = offset - dup.text.length;
+			dup.setEndPoint('StartToStart', range);
+			pos.start = offset - dup.text.length;
+		}
+		return pos;
 	},
- 
- 
-	trimLastElement: function(separator){
-		separator = separator || ' ';
-		var txt = this; //(separator.test(' $'))?this:this.trim();
-		var index = this.lastIndexOf(separator);
-		return (index == -1)? "": txt.substr(0, index + separator.length);
+
+	selectRange: function(start, end) {
+		if (Browser.Engine.trident) {
+			var diff = this.value.substr(start, end - start).replace(/\r/g, '').length;
+			start = this.value.substr(0, start).replace(/\r/g, '').length;
+			var range = this.createTextRange();
+			range.collapse(true);
+			range.moveEnd('character', start + diff);
+			range.moveStart('character', start);
+			range.select();
+		} else {
+			this.focus();
+			this.setSelectionRange(start, end);
+		}
+		return this;
 	}
+
 });
 
-/* do not edit below this line */   
-/* Section: Change Log 
+/* compatibility */
 
-$Source: /cvs/main/flatfile/html/rb/js/global/cnet.global.framework/common/3rdParty/Autocomplete/Autocompleter.js,v $
-$Log: Autocompleter.js,v $
-Revision 1.5  2007/09/05 18:36:58  newtona
-fixing all js warnings in the code base; they weren't breaking anything, but they can create performance issues and it's good practice...
+Autocompleter.Base = Autocompleter;
 
-Revision 1.4  2007/08/15 01:03:30  newtona
-Added more event info for Autocompleter.js
-Slimbox no longer adds css to the page if there aren't any images found for the instance
-Iframeshim now exits quietly if you try and position it before the dom is ready
-jsonp now handles having more than one request open at a time
-removed a console.log statement from window.cnet.js (shame on me for leaving it there)
+/**
+ * Autocompleter.Local
+ *
+ * http://digitarald.de/project/autocompleter/
+ *
+ * @version		1.1.2
+ *
+ * @license		MIT-style license
+ * @author		Harald Kirschner <mail [at] digitarald.de>
+ * @copyright	Author
+ */
 
-Revision 1.3  2007/06/12 20:26:52  newtona
-*** empty log message ***
+Autocompleter.Local = new Class({
 
-Revision 1.2  2007/06/07 18:43:35  newtona
-added CSS to autocompleter.js
-removed string.cnet.js dependencies from template parser and stickyWin.default.layout.js
+	Extends: Autocompleter,
 
-Revision 1.1  2007/06/02 01:35:17  newtona
-*** empty log message ***
-
-
-*/
-/*	Script: Autocompleter.Local.js
-		Extends the <Autocompleter.Base> class to add support for a pre-defined object.
-		
-		Class: Autocompleter.Local
-		Extends the <Autocompleter.Base> class to add support for a pre-defined object.
-		
-		Arguments:
-		el - (DOM element or id) element to observe.
-		tokens - (Array) an array of values
-		options - (object) key/value set of options.
-		
-		Options:
-		All values passed to <Autocompleter.Base>
-		
-		minLength - Overrides minLength to 0.
-		filterTokens - Function, optional. Allows to override default filterTokens method
-
-		Example:
-(start code)
-//this object's structure is arbitrary
-var tokens = [
-	['Apple', 'Red'],
-	['Lemon', 'Yellow'],
-	['Grape', 'Purple']	
-];
-
-new Autocompleter.Local($('myInput'), tokens, {
-	delay: 100,
-	//this is a custom filter because our object has a unique structure
-	filterTokens: function() {
-		var regex = new RegExp('^' + (this.queryValue || '').escapeRegExp(), 'i');
-		var filtered = this.tokens.filter(function(token){
-			return (regex.test(token[0]) || regex.test(token[1]));
-		});
-		return filtered;
-	},
-	//again, because our data structure is unique, we must handle the results ourselves
-	injectChoice: function(choice) {
-		var el = new Element('li')
-			.setHTML(this.markQueryValue(choice[0]))
-			.adopt(new Element('span', {'class': 'example-info'}).setHTML(this.markQueryValue(choice[1])));
-		el.inputValue = choice[0];
-		this.addChoiceEvents(el).injectInside(this.choices);
-	}
-});
-(end)
-	*/
-
-Autocompleter.Local = Autocompleter.Base.extend({
 	options: {
 		minLength: 0,
-		filterTokens : null
+		delay: 200
 	},
-	initialize: function(el, tokens, options) {
-		this.parent(el, options);
+
+	initialize: function(element, tokens, options) {
+		this.parent(element, options);
 		this.tokens = tokens;
-		if (this.options.filterTokens) this.filterTokens = this.options.filterTokens.bind(this);
 	},
+
 	query: function() {
-		this.hideChoices();
-		this.queryValue = (this.options.multi)?
-				this.element.value.lastElement(this.options.delimeter).trim()
-				:this.element.value;
-		this.updateChoices(this.filterTokens());
-	},
-	filterTokens: function(token) {
-		var regex = new RegExp('^' + this.queryValue.escapeRegExp(), 'i');
-		return this.tokens.filter(function(token) {
-			return regex.test(token);
-		});
+		this.update(this.filter());
 	}
+
 });
-/* do not edit below this line */   
-/* Section: Change Log 
 
-$Source: /cvs/main/flatfile/html/rb/js/global/cnet.global.framework/common/3rdParty/Autocomplete/Autocompleter.Local.js,v $
-$Log: Autocompleter.Local.js,v $
-Revision 1.1  2007/06/12 20:26:52  newtona
-*** empty log message ***
+/**
+ * Autocompleter.Request
+ *
+ * http://digitarald.de/project/autocompleter/
+ *
+ * @version		1.1.2
+ *
+ * @license		MIT-style license
+ * @author		Harald Kirschner <mail [at] digitarald.de>
+ * @copyright	Author
+ */
 
+Autocompleter.Request = new Class({
 
-*/
+	Extends: Autocompleter,
 
-/*	Script: Autocompleter.Remote.js
-		Contains the classes for the Remote methods for <Autocompleter>.
-
-		Namespace: Autocompleter.Ajax
-		Contains the classes for the Remote methods for <Autocompleter>
-		
-		Details:
-		Author - Harald Kirschner <mail [at] digitarald.de>
-		Refactored by - Aaron Newton <aaron [dot] newton [at] cnet [dot] com>
-		License - MIT-style license
-		Version - 1.0rc3
-		Source - http://digitarald.de/project/autocompleter/
-		
-		Dependencies:
-		Mootools 1.1 - <Class.Extras>, <Element.Event>, <Element.Selectors>, <Element.Form>, <Element.Dimensions>, <Fx.Style>, <Ajax>, <Json>
-		Autocompleter - <Autocompleter.js>, <Observer.js>
-	*/
-Autocompleter.Ajax = {};
-/*	Class: Autocompleter.Ajax.Base
-		The base functionality for all <Autocompleter.Ajax> functionality.
-		
-		Arguments:
-		el - (DOM element or id) element to observe.
-		url - (string) the url to query for values
-		options - (object) key/value set of options.
-		
-		Options:
-		postVar - String, default ‘value’. Post variable name for the query string
-		postData - Object, optional. Additional request data
-		ajaxOptions - optional Options Object. For the Ajax instance
-		onRequest - Event Function.
-		onComplete - Event Function.
-		
-		Example:
-		The <Autocompleter.Ajax.Base> class is not used directly but rather its inhertants are (see 
-		<Autocompleter.Ajax.Json> and <Autocompleter.Ajax.Xhtml>) so there is no example here.
-	*/
-Autocompleter.Ajax.Base = Autocompleter.Base.extend({
-
-	options: {
-		postVar: 'value',
+	options: {/*
+		indicator: null,
+		indicatorClass: null,
+		onRequest: $empty,
+		onComplete: $empty,*/
 		postData: {},
 		ajaxOptions: {},
-		onRequest: Class.empty,
-		onComplete: Class.empty
-	},
+		postVar: 'value'
 
-	initialize: function(el, url, options) {
-		this.parent(el, options);
-		this.ajax = new Ajax(url, $merge({
-			autoCancel: true
-		}, this.options.ajaxOptions));
-		this.ajax.addEvent('onComplete', this.queryResponse.bind(this));
-		this.ajax.addEvent('onFailure', this.queryResponse.bind(this, [false]));
 	},
 
 	query: function(){
-		var multi = this.options.multi;
-		var data = $extend({}, this.options.postData);
-		if(multi) this.lastQueryElementValue = this.element.value.lastElement(this.options.delimeter);
-		data[this.options.postVar] = (multi)?this.lastQueryElementValue:this.element.value;
-		this.fireEvent('onRequest', [this.element, this.ajax]);
-		this.ajax.request(data);
-	},
-	
-/*	Property: queryResponse
-		Inherated classes have to extend this function and use this.parent(resp)
-		
-		Arguments:
-		resp - (String) the response from the ajax query.
-*/
-	queryResponse: function(resp) {
-		this.value = this.queryValue = this.element.value;
-		this.selected = false;
-		this.hideChoices();
-		this.fireEvent(resp ? 'onComplete' : 'onFailure', [this.element, this.ajax], 20);
-	}
-
-});
-
-/*	Class: Autocompleter.Ajax.Json
-		Extends <Autocompleter.Ajax.Base> to include Json support.
-		
-		Arguments:
-		All those specified in <Autocompleter.Ajax.Base> and <Autocompleter.Base>.
-		
-		Example:
-new Autocompleter.Ajax.Json($('ajaxJson'), 'server/auto.php' {
-	postVar: 'query'
-});
-	*/
-Autocompleter.Ajax.Json = Autocompleter.Ajax.Base.extend({
-
-	queryResponse: function(resp) {
-		this.parent(resp);
-		var choices = Json.evaluate(resp || false);
-		if (!choices || !choices.length) return;
-		this.updateChoices(choices);
-	}
-
-});
-
-/*	Class: Autocompleter.Ajax.Xhtml
-		Extends <Autocompleter.Ajax.Base> to include Xhtml support.
-
-		Arguments:
-		All those specified in <Autocompleter.Ajax.Base> and <Autocompleter.Base>.
-
-		Example:		
-(start code)
-new Autocompleter.Ajax.Xhtml($('ajaxXhtml'), 'server/auto.php', {
-	postData: {html: 1}, //some data to go along with the request
-	//handle the data returned
-	parseChoices: function(el) {
-		var value = el.getFirst().innerHTML;
-		el.inputValue = value;
-		this.addChoiceEvents(el).getFirst().setHTML(this.markQueryValue(value));
-	}
-});
-(end)
-	*/
-Autocompleter.Ajax.Xhtml = Autocompleter.Ajax.Base.extend({
-
-	options: {
-		parseChoices: null
+		var data = $unlink(this.options.postData) || {};
+		data[this.options.postVar] = this.queryValue;
+		var indicator = $(this.options.indicator);
+		if (indicator) indicator.setStyle('display', '');
+		var cls = this.options.indicatorClass;
+		if (cls) this.element.addClass(cls);
+		this.fireEvent('onRequest', [this.element, this.request, data, this.queryValue]);
+		this.request.send({'data': data});
 	},
 
-	queryResponse: function(resp) {
-		this.parent(resp);
-		if (!resp) return;
-		this.choices.setHTML(resp).getChildren().each(this.options.parseChoices || this.parseChoices, this);
-		this.showChoices();
-	},
-
-	parseChoices: function(el) {
-		var value = el.innerHTML;
-		el.inputValue = value;
-		el.setHTML(this.markQueryValue(value));
+	/**
+	 * queryResponse - abstract
+	 *
+	 * Inherated classes have to extend this function and use this.parent()
+	 */
+	queryResponse: function() {
+		var indicator = $(this.options.indicator);
+		if (indicator) indicator.setStyle('display', 'none');
+		var cls = this.options.indicatorClass;
+		if (cls) this.element.removeClass(cls);
+		return this.fireEvent('onComplete', [this.element, this.request]);
 	}
 
 });
 
-/* do not edit below this line */   
-/* Section: Change Log 
+Autocompleter.Request.JSON = new Class({
 
-$Source: /cvs/main/flatfile/html/rb/js/global/cnet.global.framework/common/3rdParty/Autocomplete/Autocompleter.Remote.js,v $
-$Log: Autocompleter.Remote.js,v $
-Revision 1.1  2007/06/12 20:26:52  newtona
-*** empty log message ***
+	Extends: Autocompleter.Request,
 
+	initialize: function(el, url, options) {
+		this.parent(el, options);
+		this.request = new Request.JSON($merge({
+			'url': url,
+			'link': 'cancel'
+		}, this.options.ajaxOptions)).addEvent('onComplete', this.queryResponse.bind(this));
+	},
 
-*/
+	queryResponse: function(response) {
+		this.parent();
+		this.update(response);
+	}
 
-/*	Script: Observer.js
-		Observes formelements for changes; part of the <Autocomplete> 3rd party package.
-		
-		Details:
-		Author - Harald Kirschner <mail [at] digitarald.de>
-		License - MIT-style license
-		Version - 1.0rc1
-		Source - http://digitarald.de/project/autocompleter/
-		
-		Dependencies:
-		Mootools 1.1 - <Class>, <Class.Extras>, <Element.Event>
-		
-		Class: Observer
-		Observes form elements for changes; part of the <Autocomplete> 3rd party package.
-		
-		Arguments:
-		el - (DOM element or id) element to observe
-		onFired - (function) event to execute periodically and/or on keyup
-		options - (object) a set of key/value options
-		
-		Options:
-		periodical - (boolean) update and fire the onFired event regularly; defaults to false
-		delay - (integer) how often to update using periodical if (periodical is true); defaults to 1000
-	*/
+});
+
+Autocompleter.Request.HTML = new Class({
+
+	Extends: Autocompleter.Request,
+
+	initialize: function(el, url, options) {
+		this.parent(el, options);
+		this.request = new Request.HTML($merge({
+			'url': url,
+			'link': 'cancel',
+			'update': this.choices
+		}, this.options.ajaxOptions)).addEvent('onComplete', this.queryResponse.bind(this));
+	},
+
+	queryResponse: function(tree, elements) {
+		this.parent();
+		if (!elements || !elements.length) {
+			this.hideChoices();
+		} else {
+			this.choices.getChildren(this.options.choicesMatch).each(this.options.injectChoice || function(choice) {
+				var value = choice.innerHTML;
+				choice.inputValue = value;
+				this.addChoiceEvents(choice.set('html', this.markQueryValue(value)));
+			}, this);
+			this.showChoices();
+		}
+
+	}
+
+});
+
+/* compatibility */
+
+Autocompleter.Ajax = {
+	Base: Autocompleter.Request,
+	Json: Autocompleter.Request.JSON,
+	Xhtml: Autocompleter.Request.HTML
+};
+
+/**
+ * Observer - Observe formelements for changes
+ *
+ * - Additional code from clientside.cnet.com
+ *
+ * @version		1.1
+ *
+ * @license		MIT-style license
+ * @author		Harald Kirschner <mail [at] digitarald.de>
+ * @copyright	Author
+ */
 var Observer = new Class({
+
+	Implements: [Options, Events],
 
 	options: {
 		periodical: false,
@@ -696,42 +604,51 @@ var Observer = new Class({
 	},
 
 	initialize: function(el, onFired, options){
-		this.setOptions(options);
+		this.element = $(el) || $$(el);
 		this.addEvent('onFired', onFired);
-		this.element = $(el);
-		this.listener = this.fired.bind(this);
-		this.value = this.element.getValue();
-		if (this.options.periodical) this.timer = this.listener.periodical(this.options.periodical);
-		else this.element.addEvent('keyup', this.listener);
+		this.setOptions(options);
+		this.bound = this.changed.bind(this);
+		this.resume();
 	},
 
-	fired: function() {
-		var value = this.element.getValue();
-		if (this.value == value) return;
+	changed: function() {
+		var value = this.element.get('value');
+		if ($equals(this.value, value)) return;
 		this.clear();
 		this.value = value;
-		this.timeout = this.fireEvent.delay(this.options.delay, this, ['onFired', [value]]);
+		this.timeout = this.onFired.delay(this.options.delay, this);
+	},
+
+	setValue: function(value) {
+		this.value = value;
+		this.element.set('value', value);
+		return this.clear();
+	},
+
+	onFired: function() {
+		this.fireEvent('onFired', [this.value, this.element]);
 	},
 
 	clear: function() {
-		$clear(this.timeout);
+		$clear(this.timeout || null);
+		return this;
+	},
+
+	pause: function(){
+		if (this.timer) $clear(this.timer);
+		else this.element.removeEvent('keyup', this.bound);
+		return this.clear();
+	},
+
+	resume: function(){
+		this.value = this.element.get('value');
+		if (this.options.periodical) this.timer = this.changed.periodical(this.options.periodical, this);
+		else this.element.addEvent('keyup', this.bound);
 		return this;
 	}
+
 });
 
-Observer.implement(new Options);
-Observer.implement(new Events);
-
-/* do not edit below this line */   
-/* Section: Change Log 
-
-$Source: /cvs/main/flatfile/html/rb/js/global/cnet.global.framework/common/3rdParty/Autocomplete/Observer.js,v $
-$Log: Observer.js,v $
-Revision 1.2  2007/06/12 20:26:52  newtona
-*** empty log message ***
-
-Revision 1.1  2007/06/02 01:35:17  newtona
-*** empty log message ***
-
-
-*/
+var $equals = function(obj1, obj2) {
+	return (obj1 == obj2 || JSON.encode(obj1) == JSON.encode(obj2));
+};

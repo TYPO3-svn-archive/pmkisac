@@ -1,2 +1,2 @@
 script = res/Autocompleter_uncompressed.js
-components = Window.DomReady
+components = DomReady

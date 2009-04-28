@@ -126,9 +126,9 @@ class tx_pmkisac_autocomplete {
 			$wSel.= " OR IW.baseword LIKE '%".$GLOBALS['TYPO3_DB']->quoteStr($search_word, 'index_words')."'";
 			$wSel = '('.$wSel.')';
 		}
-		$data = $this->execPHashListQuery($wSel,' AND is_stopword=0 '.$this->mediaTypeWhere().' '.$this->languageWhere());
+		$data = $this->execPHashListQuery($wSel,' AND is_stopword=0 AND ISEC.page_id IN ('.$this->wholeSiteIdList.') '.$this->mediaTypeWhere().' '.$this->languageWhere());
+		//$data = $this->execPHashListQuery($wSel,' AND is_stopword=0 '.$this->mediaTypeWhere().' '.$this->languageWhere());
 		//$data = $this->execPHashListQuery($wSel,' AND is_stopword=0');
-
 		// Build the array
 		$results = array();
 		$word_page_index = array();

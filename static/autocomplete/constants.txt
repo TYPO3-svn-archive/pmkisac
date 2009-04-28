@@ -9,7 +9,7 @@ plugin.tx_pmkisac {
 	# cat=pmkisac/dims/d3; type=int+; label= Width of autocompleter dropdown if "inheritWidth" is set to FALSE.
 	dropDownWidth = 100
 
-	# cat=pmkisac/enable/e1; type=options[None=0,Outside=1,Inside=2]; label=Enable progress indicator: If set to 1, a progress indicator (spinner) is shown at the right of the input box. If set to 2 the progress indicator is shown inside the inputbox.
+	# cat=pmkisac/enable/e1; type=boolean; label=Enable progress indicator: If set to 1, a progress indicator (spinner) is shown inside the inputbox.
 	progressIndicator = 1
 	
 	# cat=pmkisac/enable/e2; type=boolean; label= Show wordcount: If set, wordcount is shown after the word in the suggested fields.
