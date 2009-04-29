@@ -12,7 +12,7 @@
 
 $EM_CONF[$_EXTKEY] = array(
 	'title' => 'PMK Indexed Search Auto completer',
-	'description' => 'Mootools AJAX based autocompleter for Indexed Search. Multiple word lookup and other features. All configurable using TypoScript. No XCLASS as it uses hook in Indexed Search.',
+	'description' => 'AJAX based autocompleter for Indexed Search. Multiple word lookup and other features. All configurable using TypoScript. No XCLASS as it uses hook in Indexed Search. Supports Multiple Js frameworks. Mootools, JQuery & Prototype',
 	'category' => 'fe',
 	'author' => 'Peter Klein',
 	'author_email' => 'peter@umloud.dk',

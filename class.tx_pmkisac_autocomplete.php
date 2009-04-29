@@ -53,7 +53,8 @@ class tx_pmkisac_autocomplete {
 		$this->minLength = intval(t3lib_div::_GP('ml'));
 		$this->maxChoices = intval(t3lib_div::_GP('mc'));
 		$this->showWordcount = intval(t3lib_div::_GP('wc'))?1:0;
-
+		$this->mode = t3lib_div::_GP('value') ? 1 : 0;
+		
 		// Make new instance of TSFE object for initializing user
 		// Identical to the function tslib_eidtools::initFeUser(), but setup TSFE in a global scope
 		$temp_TSFEclassName = t3lib_div::makeInstanceClassName('tslib_fe');
@@ -92,11 +93,13 @@ class tx_pmkisac_autocomplete {
 	function main() {
 		$this->content = '';
 		$t1 = microtime(true);
-		$this->findWords(trim(t3lib_div::_GP('value')));
+		$word = $this->mode ? trim(t3lib_div::_GP('value')) : trim(t3lib_div::_GP('query'));
+//		$this->findWords(trim(t3lib_div::_GP('value')));
+		$this->findWords($word);
 		$t2 = microtime(true);
 		$time = sprintf('%.4f', ($t2 - $t1) );
 
-		//$this->content.= 'Time: '.$time.' sec.';
+//		$this->content.= 'Time: '.$time.' sec.';
 	}
 
 	/**
@@ -105,9 +108,17 @@ class tx_pmkisac_autocomplete {
 	 * @return	void
 	 */
 	function printContent() {
-		// Space at end needed, otherwise progress indicator stays active when no result is found
-		header('Content-type: text/html; Charset=utf-8');
-		echo $this->content.' ';
+		if ($this->mode) {
+			// Mootools
+			header('Content-type: text/html; Charset=utf-8');
+			// Space at end needed, otherwise progress indicator stays active when no result is found
+			echo $this->content.' ';
+		}
+		else {
+			// JQuery & Prototype
+			header('Content-type: application/json; Charset=utf-8');
+			echo json_encode($this->content);
+		}
 	}
 
 	/**
@@ -159,17 +170,32 @@ class tx_pmkisac_autocomplete {
 
 		// Reduce array to length specified in $this->maxChoices
 		$final_results = array_slice($final_results, 0,$this->maxChoices);
-
+		
 		// Generate output
-		if ($this->showWordcount) {
-			foreach($final_results as $word => $count) {
-				$this->content.='<li><span>'.$word.'</span> <span class="autocompleter-count">('.$count.')</span></li>';
+		if ($this->mode) {
+			// Mootools
+			if ($this->showWordcount) {
+				foreach($final_results as $word => $count) {
+					$this->content.='<li><span>'.$word.'</span> <span class="autocompleter-count">('.$count.')</span></li>';
+				}
+			}
+			else {
+				foreach($final_results as $word => $count) {
+					$this->content.='<li><span>'.$word.'</span></li>';
+				}
 			}
 		}
 		else {
+			// Prototype & JQuery
+			$this->content['query'] = $search_word;
+			$suggestions = array();
+			$data = array();
 			foreach($final_results as $word => $count) {
-				$this->content.='<li><span>'.$word.'</span></li>';
+				$suggestions[] =$word;
+				$data[] =$count;
 			}
+			$this->content['suggestions'] = $suggestions;
+			$this->content['data'] = $data;
 		}
 	}
 

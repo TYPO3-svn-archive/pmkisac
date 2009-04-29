@@ -38,6 +38,10 @@ plugin.tx_pmkisac {
 	
 	# On multilanguage sites, search in ALL languages, instead of seperate languages based on "config.sys_language_uid"
 	allLang = {$plugin.tx_pmkisac.allLang}
+
+	# Javascript framework
+	framework = {$plugin.tx_pmkisac.framework}
+	
 }
 
 # Create a USER object for calling the userfunction that includes the necessary 
@@ -51,3 +55,4 @@ lib.mySearchbox.userFunc.cssId = mySearchbox
 
 # And finally you should add the USER object to your PAGE object.
 #page.100 < lib.mySearchbox
+

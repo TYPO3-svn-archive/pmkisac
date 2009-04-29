@@ -38,5 +38,8 @@ plugin.tx_pmkisac {
 		
 	# cat=pmkisac/file/f1; type=file[css]; label= CSS File: CSS file for Autocompleter. Leave it blank if you place the CSS in your main stylesheet.
 	cssFile = typo3conf/ext/pmkisac/res/Autocompleter.css
+	
+	# cat=pmkisac//o1; type=options[Mootools=mootools, JQuery=jquery, Prototype=prototype]; label= Javascript framework?: Note this extension was originally written for Mootools, so there might be some options not available in the JQuery and Prototype versions.
+	framework = mootools
 
 }

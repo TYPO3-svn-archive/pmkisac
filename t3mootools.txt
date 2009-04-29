@@ -1,2 +1,2 @@
-script = res/Autocompleter_uncompressed.js
+script = res/mootools/Autocompleter_uncompressed.js
 components = DomReady
