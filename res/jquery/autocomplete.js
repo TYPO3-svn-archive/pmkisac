@@ -46,7 +46,10 @@
       highlight: true,
       params: {},
       fnFormatResult: fnFormatResult,
-      delimiter: null
+      delimiter: null,
+// PMK
+	  spinner: true
+// PMK
     };
     if (options) { $.extend(this.options, options); }
     if(this.options.lookup){
@@ -210,6 +213,9 @@
     },
     
     getSuggestions: function(q) {
+// PMK
+	  if (this.options.spinner) { this.el.addClass('autocompleter-loading'); }
+// PMK
       var cr, me, ls;
       cr = this.isLocal ? this.getSuggestionsLocal(q) : this.cachedResponse[q];
       if (cr && $.isArray(cr.suggestions)) {
@@ -226,7 +232,12 @@
     isBadQuery: function(q) {
       var i = this.badQueries.length;
       while (i--) {
-        if (q.indexOf(this.badQueries[i]) === 0) { return true; }
+        if (q.indexOf(this.badQueries[i]) === 0) {
+// PMK
+		  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
+// PMK		
+		  return true;
+	    }
       }
       return false;
     },
@@ -235,6 +246,9 @@
       this.enabled = false;
       this.selectedIndex = -1;
       this.container.hide();
+// PMK
+	  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
+// PMK
     },
 
     suggest: function() {
@@ -258,6 +272,9 @@
       }
       this.enabled = true;
       this.container.show();
+// PMK
+	  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
+// PMK
     },
 
     processResponse: function(text) {

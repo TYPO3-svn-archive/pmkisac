@@ -12,22 +12,22 @@ plugin.tx_pmkisac {
 	# cat=pmkisac/enable/e1; type=boolean; label=Enable progress indicator: If set to 1, a progress indicator (spinner) is shown inside the inputbox.
 	progressIndicator = 1
 	
-	# cat=pmkisac/enable/e2; type=boolean; label= Show wordcount: If set, wordcount is shown after the word in the suggested fields.
+	# cat=pmkisac/enable/e2; type=boolean; label= Show wordcount: If set, wordcount is shown after the word in the suggested fields. (Mootools only)
 	showWordcount = 1
 		
-	# cat=pmkisac/enable/e3; type=boolean; label= Allow multiple lookups: Allow more than one value, separated by a delimiter.
+	# cat=pmkisac/enable/e3; type=boolean; label= Allow multiple lookups: Allow more than one value, separated by a delimiter. (Mootools & jQuery only)
 	allowMulti = 1
 
 	# cat=pmkisac/enable/e4; type=boolean; label= Match start of word only: If set, text must match start of word, otherwise text can also be part of word.
 	startingWordOnly = 1
 
-	# cat=pmkisac/enable/e5; type=boolean; label= Select completed text part: Select completed text part (Not active if allowMulti is enabled or if startingWordOnly is not set)
+	# cat=pmkisac/enable/e5; type=boolean; label= Select completed text part: Select completed text part (Not active if allowMulti is enabled or if startingWordOnly is not set)  (Mootools only)
 	useSelection = 1
 		
 	# cat=pmkisac/enable/e6; type=boolean; label= Mark queried string: Mark queried string with <span class="autocompleter-queried">*</span> (Not active if allowMulti is enabled)
 	markQuery = 1
 
-	# cat=pmkisac/enable/e7; type=boolean; label= Inherit width: Inherit width for the autocompleter overlay from the input field
+	# cat=pmkisac/enable/e7; type=boolean; label= Inherit width: Inherit width for the autocompleter overlay from the input field.  (Mootools only) 
 	inheritWidth = 1
 
 	# cat=pmkisac/enable/e8; type=boolean; label= Autosubmit form?: If set, form will be auto submitted after a lookupword has been selected. (Not active if allowMulti is enabled)
@@ -35,6 +35,9 @@ plugin.tx_pmkisac {
 	
 	# cat=pmkisac/enable/e9; type=boolean; label= Search in ALL languages?: If set search will be performed on all languages, instead of separate languages based on "config.sys_language_uid"
 	allLang = 0
+		
+	# cat=pmkisac/enable/ea; type=boolean; label= Include JS Framework?: If set, the javascript framework will be included by the extension. (jQuery & Prototype only)
+	includeFramework = 1
 		
 	# cat=pmkisac/file/f1; type=file[css]; label= CSS File: CSS file for Autocompleter. Leave it blank if you place the CSS in your main stylesheet.
 	cssFile = typo3conf/ext/pmkisac/res/Autocompleter.css

@@ -29,7 +29,10 @@ var Autocomplete = function(el, options){
     maxHeight:300,
     deferRequestBy:0,
     width:0,
-    container:null
+    container:null,
+// PMK
+	spinner: true
+// PMK
   };
   if(options){ Object.extend(this.options, options); }
   if(Autocomplete.isDomLoaded){
@@ -57,6 +60,7 @@ Autocomplete.prototype = {
   killerFn: null,
 
   initialize: function() {
+
     var me = this;
     this.killerFn = function(e) {
       if (!$(Event.element(e)).up('.autocomplete')) {
@@ -177,6 +181,10 @@ Autocomplete.prototype = {
   },
 
   getSuggestions: function() {
+
+// PMK
+	  if (this.options.spinner) { this.el.addClassName('autocompleter-loading'); }
+// PMK
     var cr = this.cachedResponse[this.currentValue];
     if (cr && Object.isArray(cr.suggestions)) {
       this.suggestions = cr.suggestions;
@@ -194,7 +202,12 @@ Autocomplete.prototype = {
   isBadQuery: function(q) {
     var i = this.badQueries.length;
     while (i--) {
-      if (q.indexOf(this.badQueries[i]) === 0) { return true; }
+      if (q.indexOf(this.badQueries[i]) === 0) {
+// PMK
+	   if (this.options.spinner) { this.el.removeClassName('autocompleter-loading'); }
+// PMK
+	   return true;
+	  }
     }
     return false;
   },
@@ -203,6 +216,9 @@ Autocomplete.prototype = {
     this.enabled = false;
     this.selectedIndex = -1;
     this.container.hide();
+// PMK
+	  if (this.options.spinner) { this.el.removeClassName('autocompleter-loading'); }
+// PMK
   },
 
   suggest: function() {
@@ -217,6 +233,9 @@ Autocomplete.prototype = {
     } .bind(this));
     this.enabled = true;
     this.container.update(content.join('')).show();
+// PMK
+	  if (this.options.spinner) { this.el.removeClassName('autocompleter-loading'); }
+// PMK
   },
 
   processResponse: function(xhr) {

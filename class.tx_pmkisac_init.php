@@ -191,9 +191,12 @@ window.addEvent("domready", function(){
 	 */
 	function setupPrototype() {
 		// Process config data
-
+		
+		$headerData = '';
 		// Include the prototype library
-		$headerData .= '<script type="text/javascript" src="typo3/contrib/prototype/prototype.js"></script>';
+		if ($this->config['includeFramework']) {
+			$headerData .= '<script type="text/javascript" src="typo3/contrib/prototype/prototype.js"></script>';
+		}
 		
 		// Include shared JS
 		$headerData .= '<script type="text/javascript" src="' . t3lib_extMgm::siteRelPath($this->extKey) . 'res/prototype/autocomplete.js"></script>';
@@ -234,6 +237,8 @@ document.observe("dom:loaded", function() {
 		    serviceUrl:"index.php?eID='.$this->extKey.'&id='.$GLOBALS['TSFE']->id.'&sp="+sectionpid+"&la="+languageid+"&me="+mediaid+"&sw='.$this->config['startingWordOnly'].'&ml='.$this->config['minLength'].'&mc='.$this->config['maxChoices'].'&wc='.$this->config['showWordcount'].'",
 		    minChars:'.$this->config['minLength'].', 
 		    maxHeight:400,
+			autoSubmit: '.$this->config['autoSubmit'].',
+			spinner: '.$this->config['progressIndicator'].',
 		    width:'.$this->config['dropDownWidth'].',
 		    // callback function:
 		    onSelect: function(value, data){
@@ -256,10 +261,12 @@ document.observe("dom:loaded", function() {
 	 */
 	function setupJQuery() {
 		// Process config data
-
-		// Include the prototype library
-		$headerData .= '<script type="text/javascript" src="' . t3lib_extMgm::siteRelPath($this->extKey) . 'res/jquery/jquery-1.3.2.min.js"></script>';
 		
+		$headerData = '';
+		// Include the jQuery library
+		if ($this->config['includeFramework']) {
+			$headerData .= '<script type="text/javascript" src="' . t3lib_extMgm::siteRelPath($this->extKey) . 'res/jquery/jquery-1.3.2.min.js"></script>';
+		}
 		// Include shared JS
 		$headerData .= '<script type="text/javascript" src="' . t3lib_extMgm::siteRelPath($this->extKey) . 'res/jquery/autocomplete.js"></script>';
 		
@@ -299,6 +306,8 @@ $(document).ready(function() {
 		    serviceUrl:"index.php?eID='.$this->extKey.'&id='.$GLOBALS['TSFE']->id.'&sp="+sectionpid+"&la="+languageid+"&me="+mediaid+"&sw='.$this->config['startingWordOnly'].'&ml='.$this->config['minLength'].'&mc='.$this->config['maxChoices'].'&wc='.$this->config['showWordcount'].'",
 		    minChars:'.$this->config['minLength'].', 
 		    maxHeight:400,
+			autoSubmit: '.$this->config['autoSubmit'].',
+			spinner: '.$this->config['progressIndicator'].',
 		    width:'.$this->config['dropDownWidth'].',
 		    // callback function:
 		    onSelect: function(value, data){
@@ -364,9 +373,12 @@ $(document).ready(function() {
 		$config['languageInputId'] = $languageInputId ? $languageInputId : 'tx-indexedsearch-selectbox-langxx';
 		
 		$config['languageid'] = (isset($GLOBALS['TSFE']->config['config']['sys_language_uid']) && !$conf['allLang']) ? intval($GLOBALS['TSFE']->config['config']['sys_language_uid']) : -1;
-
+		
 		$mediaInputId = trim($conf['mediaInputId']);
 		$config['mediaInputId'] = $mediaInputId ? $mediaInputId : 'tx-indexedsearch-selectbox-media';
+		
+		$includeFramework = intval($conf['includeFramework']);
+		$config['includeFramework'] = $includeFramework ? 1 : 0;
 		
 		$framework = strtolower(trim($conf['framework']));
 		$config['framework'] = t3lib_div::inList('mootools,jquery,prototype',$framework) ? $framework : 'mootools';

@@ -39,6 +39,9 @@ plugin.tx_pmkisac {
 	# On multilanguage sites, search in ALL languages, instead of seperate languages based on "config.sys_language_uid"
 	allLang = {$plugin.tx_pmkisac.allLang}
 
+	Include JS Framework?
+	includeFramework = {$plugin.tx_pmkisac.includeFramework}
+	
 	# Javascript framework
 	framework = {$plugin.tx_pmkisac.framework}
 	
