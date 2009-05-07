@@ -309,6 +309,7 @@ $(document).ready(function() {
 			autoSubmit: '.$this->config['autoSubmit'].',
 			spinner: '.$this->config['progressIndicator'].',
 		    width:'.$this->config['dropDownWidth'].',
+			delimiter: '.($this->config['allowMulti']? '" "':'null').',
 		    // callback function:
 		    onSelect: function(value, data){
 		        //alert("You selected: " + value + ", " + data);
