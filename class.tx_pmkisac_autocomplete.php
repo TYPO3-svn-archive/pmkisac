@@ -2,7 +2,7 @@
 /***************************************************************
 *  Copyright notice
 *
-*  (c) 2007 Peter Klein <peter@umloud.dk>
+*  (c) 2007-2009 Peter Klein <peter@umloud.dk>
 *  All rights reserved
 *
 *  This script is part of the TYPO3 project. The TYPO3 project is

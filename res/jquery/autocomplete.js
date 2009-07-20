@@ -1,11 +1,11 @@
 /*
-*  Ajax Autocomplete for jQuery, version 1.0.6
+*  Ajax Autocomplete for jQuery, version 1.0.7
 *  (c) 2009 Tomas Kirda
 *
 *  Ajax Autocomplete for jQuery is freely distributable under the terms of an MIT-style license.
 *  For details, see the web site: http://www.devbridge.com/projects/autocomplete/jquery/
 *
-*  Last Review: 4/24/2009
+*  Last Review: 07/01/2009
 */
 
 (function($) {
@@ -46,10 +46,7 @@
       highlight: true,
       params: {},
       fnFormatResult: fnFormatResult,
-      delimiter: null,
-// PMK
-	  spinner: true
-// PMK
+      delimiter: null
     };
     if (options) { $.extend(this.options, options); }
     if(this.options.lookup){
@@ -68,7 +65,7 @@
       var me, zindex;
       me = this;
 
-      zindex = Math.max.apply(null, $.map($('body > *'), function(e, n) { if ($(e).css('position') === 'absolute') { return parseInt($(e).css('z-index'), 10) || 1; } }));
+      zindex = Math.max.apply(null, $.map($('body > *'), function(e, n) { var pos = $(e).css('position'); if (pos === 'absolute' || pos === 'relative') { return parseInt($(e).css('z-index'), 10) || 1; } }));
 
       this.killerFn = function(e) {
         if ($(e.target).parents('.autocomplete').size() === 0) {
@@ -83,7 +80,7 @@
       if (!this.options.width) { this.options.width = this.el.width(); }
       this.mainContainerId = 'AutocompleteContainter_' + uid;
 
-      $('<div id="' + this.mainContainerId + '" style="position:absolute;z-index=' + zindex + '"><div class="autocomplete-w1"><div class="autocomplete" id="' + autocompleteElId + '" style="display:none; width:' + this.options.width + 'px;"></div></div></div>').appendTo('body');
+      $('<div id="' + this.mainContainerId + '" style="position:absolute;z-index:' + zindex + '"><div class="autocomplete-w1"><div class="autocomplete" id="' + autocompleteElId + '" style="display:none; width:' + this.options.width + 'px;"></div></div></div>').appendTo('body');
 
       this.container = $('#' + autocompleteElId);
       this.fixPosition();
@@ -213,9 +210,6 @@
     },
     
     getSuggestions: function(q) {
-// PMK
-	  if (this.options.spinner) { this.el.addClass('autocompleter-loading'); }
-// PMK
       var cr, me, ls;
       cr = this.isLocal ? this.getSuggestionsLocal(q) : this.cachedResponse[q];
       if (cr && $.isArray(cr.suggestions)) {
@@ -232,12 +226,7 @@
     isBadQuery: function(q) {
       var i = this.badQueries.length;
       while (i--) {
-        if (q.indexOf(this.badQueries[i]) === 0) {
-// PMK
-		  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
-// PMK		
-		  return true;
-	    }
+        if (q.indexOf(this.badQueries[i]) === 0) { return true; }
       }
       return false;
     },
@@ -246,9 +235,6 @@
       this.enabled = false;
       this.selectedIndex = -1;
       this.container.hide();
-// PMK
-	  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
-// PMK
     },
 
     suggest: function() {
@@ -272,9 +258,6 @@
       }
       this.enabled = true;
       this.container.show();
-// PMK
-	  if (this.options.spinner) { this.el.removeClass('autocompleter-loading'); }
-// PMK
     },
 
     processResponse: function(text) {
@@ -283,11 +266,13 @@
         response = eval('(' + text + ')');
       } catch (err) { return; }
       if (!$.isArray(response.data)) { response.data = []; }
-      this.suggestions = response.suggestions;
-      this.data = response.data;
       this.cachedResponse[response.query] = response;
       if (response.suggestions.length === 0) { this.badQueries.push(response.query); }
-      if (response.query === this.getQuery(this.currentValue)) { this.suggest(); }
+      if (response.query === this.getQuery(this.currentValue)) {
+        this.suggestions = response.suggestions;
+        this.data = response.data;
+        this.suggest(); 
+      }
     },
 
     activate: function(index) {
